@@ -1,10 +1,10 @@
-## Delete Test Package Versions
-This script identifies and deletes package versions that are considered "test packages" based on a regular expression match against their `spec.relative_path`. It operates on the Endor Labs namespace (and its child namespaces if `traverse` is enabled in API calls, which it currently is for package fetching) specified in the `.env` file.
+## Delete Secrets Findings
+This script identifies and deletes findings that are categorized as secrets. It operates on the Endor Labs namespace (and its child namespaces if `traverse` is enabled in API calls) specified in the `.env` file.
 
-The script uses the following filter to identify test packages:
-`context.type==CONTEXT_TYPE_MAIN and spec.relative_path matches '(?i).*(tests?|testing|test|testdata).*'`
+The script uses the following filter to identify secrets findings:
+`spec.finding_categories contains 'FINDING_CATEGORY_SECRETS'`
 
-This means packages with paths containing `test`, `tests`, `testing`, or `testdata` (case-insensitive) anywhere in their relative path will be targeted.
+This means findings with the category "FINDING_CATEGORY_SECRETS" will be targeted for deletion.
 
 ## SETUP
 
@@ -26,17 +26,17 @@ pip install -r requirements.txt
 
 Step 3: Run the script
 
-*   **Dry Run (default behavior):** To see which test packages would be deleted without actually deleting them:
+*   **Dry Run (default behavior):** To see which secrets findings would be deleted without actually deleting them:
     ```bash
     python3 main.py
     ```
-    The script will list the test packages found and state that it's in dry-run mode.
+    The script will list the secrets findings found and state that it's in dry-run mode.
 
-*   **Actual Deletion:** To delete all identified test packages:
+*   **Actual Deletion:** To delete all identified secrets findings:
     ```bash
     python3 main.py --no-dry-run
     ```
-    **Caution:** This will permanently delete package versions. Ensure you have reviewed the output of a dry run first.
+    **Caution:** This will permanently delete findings. Ensure you have reviewed the output of a dry run first.
 
 ## No Warranty
 

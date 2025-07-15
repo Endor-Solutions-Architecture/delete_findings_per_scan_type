@@ -40,21 +40,21 @@ HEADERS = {
     "Request-Timeout": "600"  # Set the request timeout to 60 seconds
 }
 
-def get_test_packages():
-    print("Fetching test packages...")
+def get_secrets_findings():
+    print("Fetching secrets findings...")
     query_data = {
         "tenant_meta": {
             "namespace": ""
         },
         "meta": {
-            "name": "Get all test packages"
+            "name": "Get all secrets findings"
         },
         "spec": {
             "query_spec": {
-                "kind": "PackageVersion",
+                "kind": "Finding",
                 "list_parameters": {
-                    "filter": "context.type==CONTEXT_TYPE_MAIN and spec.relative_path matches '(?i).*(tests?|testing|test|testdata).*'",
-                    "mask": "uuid,spec.project_uuid,spec.relative_path,tenant_meta",
+                    "filter": "spec.finding_categories contains 'FINDING_CATEGORY_SECRETS'",
+                    "mask": "uuid,spec.finding_categories,meta.description,tenant_meta",
                     "traverse": True
                 }
             }
@@ -66,7 +66,7 @@ def get_test_packages():
     print(f"POST Request to URL: {url}")
     print(f"Using filter: {query_data['spec']['query_spec']['list_parameters']['filter']}")
 
-    test_packages = []
+    secrets_findings = []
     next_page_id = None
 
     try:
@@ -78,67 +78,67 @@ def get_test_packages():
             response = requests.post(url, headers=HEADERS, json=query_data, timeout=600)
 
             if response.status_code != 200:
-                print(f"Failed to fetch test packages. Status Code: {response.status_code}, Response: {response.text}")
+                print(f"Failed to fetch secrets findings. Status Code: {response.status_code}, Response: {response.text}")
                 return []
 
             # Parse the response data
             response_data = response.json()
-            packages = response_data.get("spec", {}).get("query_response", {}).get("list", {}).get("objects", [])
+            findings = response_data.get("spec", {}).get("query_response", {}).get("list", {}).get("objects", [])
 
             # Process the results
-            for package in packages:
-                package_uuid = package.get("uuid")
-                tenant_name = package.get("tenant_meta", {}).get("namespace")
-                project_uuid = package.get("spec", {}).get("project_uuid")
-                relative_path = package.get("spec", {}).get("relative_path")
-                test_packages.append(package)
-                print(f"Found test package: {package_uuid}, tenant-name: {tenant_name}, project-uuid: {project_uuid}, relative_path: {relative_path}")
+            for finding in findings:
+                finding_uuid = finding.get("uuid")
+                tenant_name = finding.get("tenant_meta", {}).get("namespace")
+                finding_categories = finding.get("spec", {}).get("finding_categories", [])
+                description = finding.get("meta", {}).get("description", "")
+                secrets_findings.append(finding)
+                print(f"UUID: {finding_uuid}, Description: {description}, Categories: {finding_categories}")
 
             # Check for next page
             next_page_id = response_data.get("spec", {}).get("query_response", {}).get("list", {}).get("response", {}).get("next_page_token")
             if not next_page_id:
                 break
 
-        return list(test_packages)
+        return list(secrets_findings)
 
     except requests.RequestException as e:
-        print(f"An error occurred while fetching test packages: {e}")
+        print(f"An error occurred while fetching secrets findings: {e}")
         return []
 
 
-def delete_test_packages(test_packages):
-    print("Attempting to delete test packages...")
-    for package in test_packages:
-        package_uuid = package.get("uuid")
-        tenant_name = package.get("tenant_meta", {}).get("namespace")
+def delete_secrets_findings(secrets_findings):
+    print("Attempting to delete secrets findings...")
+    for finding in secrets_findings:
+        finding_uuid = finding.get("uuid")
+        tenant_name = finding.get("tenant_meta", {}).get("namespace")
 
-        if package_uuid and tenant_name:
-            url = f"{API_URL}/namespaces/{tenant_name}/package-versions/{package_uuid}"
+        if finding_uuid and tenant_name:
+            url = f"{API_URL}/namespaces/{tenant_name}/findings/{finding_uuid}"
             try:
-                print(f"Deleting test package with UUID: {package_uuid}")
+                print(f"Deleting secrets finding with UUID: {finding_uuid}")
                 response = requests.delete(url, headers=HEADERS, timeout=60)
                 if response.status_code == 200:
-                    print(f"Successfully deleted package with UUID: {package_uuid}")
+                    print(f"Successfully deleted finding with UUID: {finding_uuid}")
                 else:
-                    print(f"Failed to delete package with UUID: {package_uuid}. Status Code: {response.status_code}, Response: {response.text}")
+                    print(f"Failed to delete finding with UUID: {finding_uuid}. Status Code: {response.status_code}, Response: {response.text}")
             except requests.RequestException as e:
-                print(f"An error occurred while deleting package with UUID: {package_uuid}: {e}")
+                print(f"An error occurred while deleting finding with UUID: {finding_uuid}: {e}")
         else:
-            print(f"Skipping package: Missing UUID or tenant name. Package details: {package}")
+            print(f"Skipping finding: Missing UUID or tenant name. Finding details: {finding}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch and potentially delete test packages.")
-    parser.add_argument('--no-dry-run', action='store_true', help="Fetch and delete all identified test packages.")
+    parser = argparse.ArgumentParser(description="Fetch and potentially delete secrets findings.")
+    parser.add_argument('--no-dry-run', action='store_true', help="Fetch and delete all identified secrets findings.")
     args = parser.parse_args()
 
-    test_packages = get_test_packages()
-    print(f"Found {len(test_packages)} test packages.")
+    secrets_findings = get_secrets_findings()
+    print(f"Found {len(secrets_findings)} secrets findings.")
 
     if args.no_dry_run:
-        delete_test_packages(test_packages)
+        delete_secrets_findings(secrets_findings)
     else:
-        print("Dry run mode: No packages will be deleted. To delete all identified test packages, run the script with the --no-dry-run flag.")
+        print("Dry run mode: No findings will be deleted. To delete all identified secrets findings, run the script with the --no-dry-run flag.")
 
 if __name__ == "__main__":
     main()
